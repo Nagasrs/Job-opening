@@ -1,0 +1,25 @@
+# RAW DATA
+Select * FROM Jobs_posting
+LIMIT 20;
+SELECT 
+Job_id,
+Job_Title,
+Job_Location,
+Job_Type,
+Salary_year_avg
+Job_Posted_Date
+FROM Jobs_posting
+WHERE Salary_year_avg is NOT NULL;
+# Filter to relevant roles
+SELECT 
+Job_id, 
+Job_Title, 
+Job_location, 
+Job_Type, 
+Job_Posted_Date
+salary_year_avg 
+FROM job_postings
+WHERE salary_year_avg IS NOT NULL AND job_title_short = 'Data Analyst' AND Job_Posted_Date> Current_Date;
+ORDER BY
+Salary_Year_avg DESC;
+
