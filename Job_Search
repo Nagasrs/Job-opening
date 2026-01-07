@@ -22,4 +22,17 @@ FROM job_postings
 WHERE salary_year_avg IS NOT NULL AND job_title_short = 'Data Analyst' AND Job_Posted_Date> Current_Date;
 ORDER BY
 Salary_Year_avg DESC;
+# Top Paying Analyst Jobs
+SELECT
+Job_id,
+Job_Title,
+Job_location,
+Job_Type,
+Salary_Year_avg
+FROM job_Postings
+WHERE slary_year_avg IS NOT NULL
+AND job_title_short = 'Data Analyst'
+ORDER BY Salary_Year_avg DESC
+LIMIT 20;
+# Most Demand Skills
 
