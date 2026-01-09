@@ -35,4 +35,17 @@ AND job_title_short = 'Data Analyst'
 ORDER BY Salary_Year_avg DESC
 LIMIT 20;
 # Most Demand Skills
-
+SELECT s.Skills,
+COUNT(sj.Job_id) AS Demand_Count
+FROM Job_Postings
+INNER JOIN skills_dim sj
+ON j.job_id = sj.job_id
+INNER JOIN skills_dim s
+ON sj.skill_id = s.skill_id
+WHERE
+j.Job_Title_short = 'DATA ANALYST'
+GROUP BY
+s.skills
+ORDER BY
+demand_Count DESC
+LIMIT 20;
