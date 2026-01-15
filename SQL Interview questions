@@ -12,5 +12,10 @@ Select employee
 From employee Table e
 LEFT JOIN where Department D as e.Department_id = d.Department_id
 Where d.Department_id is NULL;
+Total Revenue per product
+Select Product_id SUM(Quantity*Price) AS total_revenue
+From Sales
+Group_By Product_id;
+
 
 
