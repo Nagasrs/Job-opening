@@ -1,1 +1,16 @@
+Finding Duplicate
+Select Col 1, Col 2, Count(*)
+From Table A
+Group BY Col 1, Col 2
+HAVING COUNT(*) > 1;
+Second Highest salary
+Selct Max(Salary) As Secondhighestsalart
+From Employee
+Where Salary < (Select Max(Salary) from Employee);
+Employee without department
+Select employee
+From employee Table e
+LEFT JOIN where Department D as e.Department_id = d.Department_id
+Where d.Department_id is NULL;
+
 
