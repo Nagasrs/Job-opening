@@ -16,6 +16,13 @@ Total Revenue per product
 Select Product_id SUM(Quantity*Price) AS total_revenue
 From Sales
 Group_By Product_id;
+Top 3 Highest paid
+Select * From Employee
+Order by salary DESC_LIMIT 3;
+All employees joined in 2025
+Select * From Employee
+Where Exract(Year From hire_date) = 2025;
+
 
 
 
