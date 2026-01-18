@@ -41,7 +41,12 @@ Where Salary between 50000 and 100000;
 Select employee_id, department_id, salary;
 Rank() OVER (PARTITION BY department_id order by Salary DESC() As Salary_rk
 From employee;
-
+  Customers who places orders every month in 2025
+Select Customer_id;
+From Orders
+Where Extract (Year From order_date) = 2025
+Group by customer_id
+Having Count(Distinct To_CHAR(Order_date, 'yyyy-MM']] = 12;
 
 
 
