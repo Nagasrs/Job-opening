@@ -31,6 +31,9 @@ Select p.product_id
 From Product p
 LEFT JOIN Sales s ON p.product_id = s.product_id
 Where s.product_id IS NULL;
+   Hired on weekend
+Select* From employee
+Where Extract(DOW from hire_date) IN (0,6);
 
 
 
