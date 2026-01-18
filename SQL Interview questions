@@ -34,6 +34,14 @@ Where s.product_id IS NULL;
    Hired on weekend
 Select* From employee
 Where Extract(DOW from hire_date) IN (0,6);
+   Salary between 50k and 1L
+Select* From employee
+Where Salary between 50000 and 100000;
+  Rank Employee by salary
+Select employee_id, department_id, salary;
+Rank() OVER (PARTITION BY department_id order by Salary DESC() As Salary_rk
+From employee;
+
 
 
 
