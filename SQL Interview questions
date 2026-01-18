@@ -1,27 +1,36 @@
-Finding Duplicate
+   Finding Duplicate
 Select Col 1, Col 2, Count(*)
 From Table A
 Group BY Col 1, Col 2
 HAVING COUNT(*) > 1;
-Second Highest salary
+  Second Highest salary
 Selct Max(Salary) As Secondhighestsalart
 From Employee
 Where Salary < (Select Max(Salary) from Employee);
-Employee without department
+  Employee without department
 Select employee
 From employee Table e
 LEFT JOIN where Department D as e.Department_id = d.Department_id
 Where d.Department_id is NULL;
-Total Revenue per product
+  Total Revenue per product
 Select Product_id SUM(Quantity*Price) AS total_revenue
 From Sales
 Group_By Product_id;
-Top 3 Highest paid
+  Top 3 Highest paid
 Select * From Employee
 Order by salary DESC_LIMIT 3;
-All employees joined in 2025
+  All employees joined in 2025
 Select * From Employee
 Where Exract(Year From hire_date) = 2025;
+   Average Order value per customer
+Select Customer_id, AVG(total_amount) AS avg_order_value
+From Orders
+Group by Customer_id;
+   Products never sold
+Select p.product_id
+From Product p
+LEFT JOIN Sales s ON p.product_id = s.product_id
+Where s.product_id IS NULL;
 
 
 
