@@ -47,6 +47,12 @@ From Orders
 Where Extract (Year From order_date) = 2025
 Group by customer_id
 Having Count(Distinct To_CHAR(Order_date, 'yyyy-MM']] = 12;
+  Maximum salary between each department
+SELECT department_id,
+MAX(Salary)-MIN(Salary) AS Salary_diff
+FROM Employee
+GROUP BY department_id;
+
 
 
 
