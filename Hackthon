@@ -1,0 +1,209 @@
+This implementation focuses on Automated Data Sanitization & PII Masking, a critical real-world task for data engineers and privacy officers. The agent must identify sensitive information (Names, Emails, SSNs, Credit Cards) in raw datasets and apply the correct masking or redaction transformations while maintaining data utility
+datashield_env/
+├── app.py                # HF Spaces entry point
+├── dockerfile            # Container configuration
+├── environment.py        # Core OpenEnv implementation
+├── openenv.yaml          # Environment metadata
+├── baseline_eval.py      # OpenAI-powered inference script
+├── README.md             # Documentation
+└── tasks/                # Task definitions and graders
+import uuid
+from typing import List, Dict, Optional, Any
+from pydantic import BaseModel, Field
+import pandas as pd
+import re
+
+# --- OpenEnv Typed Models ---
+
+class Action(BaseModel):
+    row_index: int
+    column_name: str
+    transformation: str = Field(..., description="Options: 'mask_email', 'redact_all', 'hash_pii', 'keep'")
+
+class Observation(BaseModel):
+    visible_data: List[Dict[str, Any]]
+    schema_info: Dict[str, str]
+    current_step: int
+    max_steps: int
+
+class Reward(BaseModel):
+    value: float
+    description: str
+
+# --- Environment Core ---
+
+class DataShieldEnv:
+    def __init__(self):
+        self.max_steps = 20
+        self.reset()
+
+    def reset(self, task_data: pd.DataFrame = None) -> Observation:
+        if task_data is None:
+            # Default fallback data
+            task_data = pd.DataFrame({"text": ["Contact: john@doe.com", "ID: 444-00-1111"]})
+        
+        self.df = task_data.copy()
+        self.original_df = task_data.copy()
+        self.current_step = 0
+        self.done = False
+        return self.state()
+
+    def state(self) -> Observation:
+        return Observation(
+            visible_data=self.df.to_dict(orient="records"),
+            schema_info={col: str(dtype) for col, dtype in self.df.dtypes.items()},
+            current_step=self.current_step,
+            max_steps=self.max_steps
+        )
+
+    def step(self, action: Action):
+        self.current_step += 1
+        
+        # 1. Apply Transformation
+        target_val = str(self.df.at[action.row_index, action.column_name])
+        
+        if action.transformation == "mask_email":
+            new_val = re.sub(r"[\w\.-]+@[\w\.-]+", "####@####.com", target_val)
+        elif action.transformation == "redact_all":
+            new_val = "[REDACTED]"
+        elif action.transformation == "hash_pii":
+            new_val = str(hash(target_val))[:10]
+        else:
+            new_val = target_val
+            
+        self.df.at[action.row_index, action.column_name] = new_val
+
+        # 2. Reward Shaping
+        # Reward for changing PII, penalty for over-redacting non-PII
+        reward_val = self._calculate_reward(action, target_val, new_val)
+        
+        if self.current_step >= self.max_steps:
+            self.done = True
+
+        return self.state(), Reward(value=reward_val, description="Step completed"), self.done, {}
+
+    def _calculate_reward(self, action, old_val, new_val) -> float:
+        # Simple heuristic: If it looked like an email/SSN and changed, +0.5
+        # If it was clean text and was redacted, -0.5 (Utility loss)
+        pii_patterns = [r"[\w\.-]+@[\w\.-]+", r"\d{3}-\d{2}-\d{4}"]
+        is_pii = any(re.search(p, str(old_val)) for p in pii_patterns)
+        
+        if is_pii and old_val != new_val:
+            return 0.5
+        if not is_pii and old_val != new_val:
+            return -0.3
+        return 0.0
+version: "1.0.0"
+name: "DataShield-v1"
+description: "A real-world environment for training agents in data privacy and PII sanitization."
+tags: ["data-engineering", "privacy", "security"]
+action_space:
+  type: "dict"
+  properties:
+    row_index: "integer"
+    column_name: "string"
+    transformation: "enum['mask_email', 'redact_all', 'hash_pii', 'keep']"
+observation_space:
+  type: "json"
+FROM python:3.10-slim
+
+WORKDIR /app
+COPY . /app
+
+RUN pip install pandas pydantic fastapi uvicorn openai
+
+EXPOSE 7860
+# Entry point for Hugging Face Spaces
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]
+import os
+from openai import OpenAI
+from environment import DataShieldEnv, Action
+
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+env = DataShieldEnv()
+
+def run_baseline(task_id):
+    obs = env.reset()
+    total_reward = 0
+    
+    for _ in range(5): # Small loop for demo
+        prompt = f"Data: {obs.visible_data}. Identify PII and suggest a row_index, column, and transformation."
+        
+        # In a real run, use structured outputs (JSON mode)
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        # Logic to parse response into Action model...
+        # obs, reward, done, _ = env.step(parsed_action)
+        # total_reward += reward.value
+        
+    print(f"Task {task_id} Score: {total_reward}")
+
+if __name__ == "__main__":
+    run_baseline("easy_scrub")
+
+1. Environment Logic (environment.py)
+This file contains the "physics" of our data world. It defines how an agent interacts with a dataset and how that dataset changes over time.
+
+The Data Models
+We use Pydantic BaseModel to ensure the agent's inputs and the environment's outputs are strictly typed. This prevents "hallucinated" actions from breaking the simulation.
+
+Action: Defines exactly what an agent can do. It must specify a location (row_index, column_name) and a specific logic to apply (transformation).
+
+Observation: This is what the agent "sees." It includes the current state of the data and metadata like schema_info so the agent knows which columns are strings vs. integers.
+
+The Core Class: DataShieldEnv
+reset(): Initializes the environment. It clears the "modified" table and restores the "original" table. In RL, this is the start of a new episode.
+
+state(): A helper method that serializes the current Pandas DataFrame into a format the agent can process (JSON/Dict).
+
+step(action): The most critical function.
+
+It locates the data point based on the agent's chosen index.
+
+It executes the logic (e.g., using re.sub for regex-based masking of emails).
+
+It calculates a Reward.
+
+The Reward Function (Partial Signal)
+Instead of a simple "win/loss" at the end, we provide immediate feedback:
+
+Positive Reward (+0.5): If the agent correctly masks a string that looks like PII.
+
+Negative Reward (-0.3): If the agent modifies "clean" data (e.g., redacting a username that wasn't sensitive), representing Utility Loss.
+
+2. Task Grading Logic (tasks/graders.py)
+The graders evaluate the final state of the data after the agent finishes its steps.
+
+Easy (Email Scrub): Uses a simple boolean check. It scans the entire "Email" column; if any @ symbol remains, the score is 0.0. If all are gone, it's 1.0.
+
+Medium (Financial Privacy): Uses regex to ensure Credit Card patterns are gone but also checks a "Name" column to ensure they weren't deleted. If names are deleted, the score is penalized (e.g., 0.7 instead of 1.0).
+
+Hard (HR Audit): This requires a "Golden Dataset." We compare the agent's table against a pre-sanitized expert version. The score is the percentage of cells that match the expert's decisions.
+
+3. Infrastructure & Deployment
+openenv.yaml
+This is the "ID card" for the environment. It tells the OpenEnv CLI tools what the action space looks like and provides tags so researchers can find this environment when looking for "Privacy" or "Data Engineering" tasks.
+
+dockerfile
+To make this "real-world," it must be portable.
+
+We use python:3.10-slim to keep the image lightweight.
+
+We install fastapi and uvicorn because Hugging Face Spaces requires a web server to communicate with the environment API.
+
+The EXPOSE 7860 line is specific to Hugging Face's internal routing.
+
+baseline_eval.py
+This script acts as the "Agent."
+
+It reads the Observation.
+
+It converts that data into a text prompt for GPT-4o.
+
+It asks the model to return a structured JSON action.
+
+It then feeds that action back into env.step().
+
+By running this, you get a "Baseline Score"—a benchmark that future, better-trained agents must try to beat.
